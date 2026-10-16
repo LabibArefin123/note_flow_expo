@@ -1,0 +1,32 @@
+import { StyleSheet } from "react-native";
+import { COLORS } from "@/constants/colors";
+
+export const styles = StyleSheet.create({
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 80 },
+  headerText: { flex: 1 },
+  eyebrow: { color: COLORS.accent, fontSize: 9, fontWeight: "800", letterSpacing: 1.8, marginBottom: 8 },
+  headerTitle: { color: COLORS.ink, fontSize: 29, fontWeight: "800", letterSpacing: -1 },
+  headerSubtitle: { color: COLORS.muted, fontSize: 12, marginTop: 6 },
+  emptyState: { alignItems: "center", paddingHorizontal: 25, paddingVertical: 42 },
+  emptyIcon: { width: 66, height: 66, borderRadius: 23, backgroundColor: COLORS.accentSoft, alignItems: "center", justifyContent: "center", marginBottom: 17 },
+  emptyTitle: { color: COLORS.ink, fontSize: 17, fontWeight: "800" },
+  emptyMessage: { color: COLORS.muted, fontSize: 12, lineHeight: 19, textAlign: "center", marginTop: 8, maxWidth: 260 },
+  emptyAction: { backgroundColor: COLORS.ink, borderRadius: 12, paddingHorizontal: 17, paddingVertical: 11, marginTop: 19 },
+  emptyActionText: { color: COLORS.white, fontSize: 12, fontWeight: "700" },
+  screen: { flex: 1, backgroundColor: COLORS.background },
+  settingsContent: { paddingHorizontal: 22, paddingTop: 20, paddingBottom: 45 },
+  profilePanel: { flexDirection: "row", alignItems: "center", gap: 13, backgroundColor: COLORS.surface, borderRadius: 19, borderWidth: 1, borderColor: COLORS.border, padding: 16, marginTop: 25 },
+  profileIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: COLORS.accentSoft, alignItems: "center", justifyContent: "center" },
+  profileName: { color: COLORS.ink, fontSize: 14, fontWeight: "800" },
+  profileSub: { color: COLORS.muted, fontSize: 11, marginTop: 4 },
+  settingsSection: { color: COLORS.muted, fontSize: 10, fontWeight: "800", letterSpacing: 1.4, marginTop: 27, marginBottom: 11 },
+  settingsGroup: { backgroundColor: COLORS.surface, borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14 },
+  settingRow: { minHeight: 70, flexDirection: "row", alignItems: "center", gap: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  settingRowLast: { borderBottomWidth: 0 },
+  settingIcon: { width: 37, height: 37, borderRadius: 12, backgroundColor: COLORS.surfaceMuted, alignItems: "center", justifyContent: "center" },
+  settingTitle: { color: COLORS.ink, fontSize: 12, fontWeight: "700" },
+  settingSubtitle: { color: COLORS.muted, fontSize: 10, marginTop: 4 },
+  dangerRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 18, paddingHorizontal: 3, marginTop: 12 },
+  dangerText: { color: COLORS.danger, fontSize: 12, fontWeight: "700" },
+  versionText: { textAlign: "center", color: COLORS.muted, fontSize: 10, marginTop: 22 },
+});

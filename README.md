@@ -42,21 +42,25 @@ Designed to make capturing ideas, organizing information, and managing personal 
 ## Installation
 
 Clone the repository:
+
 ```bash
-git clone https://github.com/LabibArefin123/noteflow_expo.git
+git clone https://github.com/LabibArefin123/note_flow_expo
 ```
 
 Navigate into the project:
+
 ```bash
 cd NoteFlow
 ```
 
 Install dependencies:
+
 ```bash
 npm install
 ```
 
 Start the development server:
+
 ```bash
 npx expo start
 ```
@@ -64,16 +68,19 @@ npx expo start
 ## Development
 
 Run on Android:
+
 ```bash
 npx expo start --android
 ```
 
 Run on iOS:
+
 ```bash
 npx expo start --ios
 ```
 
 Run Expo Doctor:
+
 ```bash
 npx expo-doctor
 ```
