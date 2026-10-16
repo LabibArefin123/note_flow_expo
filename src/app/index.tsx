@@ -2,269 +2,85 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
+import { NoteCard } from "@/components/notes/note-card";
+import { ScreenHeader } from "@/components/common/screen-header";
+import { EmptyState } from "@/components/common/empty-state";
 import { COLORS } from "@/constants/colors";
 import { getNotes } from "@/database/notes";
-import { styles } from "@/styles/notes.styles";
-
+import { styles } from "@/styles/home.styles";
 import type { Note } from "@/types/note.types";
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Personal: "#8B7CF6",
-  Work: "#4D9DE0",
-  Ideas: "#E5A84B",
-  Study: "#42A58A",
-};
+const FILTERS = ["All", "Personal", "Work", "Ideas", "Study"];
 
-export default function NotesScreen() {
+export default function HomeScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
-
   const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("All");
 
   const loadNotes = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      const result = await getNotes(db);
-      setNotes(result);
-    } catch (error) {
-      console.error("Failed to load notes:", error);
-    } finally {
-      setLoading(false);
-    }
+    setNotes(await getNotes(db));
   }, [db]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadNotes();
-    }, [loadNotes]),
-  );
+  useFocusEffect(useCallback(() => { loadNotes(); }, [loadNotes]));
 
-  const createNote = () => {
-    router.push({
-      pathname: "/note/[id]",
-      params: { id: "new" },
-    });
-  };
-
-  const openNote = (id: string) => {
-    router.push({
-      pathname: "/note/[id]",
-      params: { id },
-    });
-  };
-
-  const renderNote = ({ item }: { item: Note }) => {
-    const categoryColor = CATEGORY_COLORS[item.category] ?? COLORS.accent;
-
-    return (
-      <Pressable style={styles.noteCard} onPress={() => openNote(item.id)}>
-        {/* Card header */}
-        <View style={styles.noteCardTop}>
-          <View style={styles.noteCategory}>
-            <View
-              style={[styles.noteDot, { backgroundColor: categoryColor }]}
-            />
-
-            <Text style={styles.noteCategoryText}>{item.category}</Text>
-          </View>
-
-          <View style={styles.noteCardIcons}>
-            {item.pinned && (
-              <Ionicons name="pin" size={14} color={COLORS.accent} />
-            )}
-
-            {item.favorite && (
-              <Ionicons name="heart" size={14} color={COLORS.danger} />
-            )}
-          </View>
-        </View>
-
-        {/* Card content */}
-        <View>
-          <Text style={styles.noteTitle} numberOfLines={2}>
-            {item.title || "Untitled note"}
-          </Text>
-
-          <Text style={styles.notePreview} numberOfLines={4}>
-            {item.content || "No additional content"}
-          </Text>
-        </View>
-
-        {/* Card footer */}
-        <View style={styles.noteCardFooter}>
-          <View style={styles.tagList}>
-            {item.tags
-              ?.split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((tag, index) => (
-                <Text
-                  key={`${tag}-${index}`}
-                  style={styles.noteTag}
-                  numberOfLines={1}
-                >
-                  #{tag}
-                </Text>
-              ))}
-          </View>
-
-          <Text style={styles.noteDate} numberOfLines={1}>
-            {item.updated_at
-              ? new Date(item.updated_at).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                })
-              : ""}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
+  const visibleNotes = notes.filter((note) => filter === "All" || note.category === filter);
+  const pinnedNotes = visibleNotes.filter((note) => note.pinned);
+  const recentNotes = visibleNotes.filter((note) => !note.pinned).slice(0, 12);
 
   return (
     <View style={styles.screen}>
-      <FlatList
-        data={notes}
-        keyExtractor={(item) => item.id}
-        renderItem={renderNote}
-        numColumns={2}
-        columnWrapperStyle={{
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}
-        contentContainerStyle={styles.pageContent}
-        showsVerticalScrollIndicator={false}
-        onRefresh={loadNotes}
-        refreshing={loading}
-        ListHeaderComponent={
-          <View>
-            {/* Header */}
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <View>
-                <Text style={styles.resultLabel}>YOUR WORKSPACE</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScreenHeader
+          eyebrow="YOUR PERSONAL SPACE"
+          title="Good morning"
+          subtitle="Capture what matters today."
+          action={<Pressable style={styles.avatar} onPress={() => router.push("/settings")}><Ionicons name="person-outline" size={19} color={COLORS.ink} /></Pressable>}
+        />
 
-                <Text
-                  style={{
-                    color: COLORS.ink,
-                    fontSize: 28,
-                    fontWeight: "800",
-                    letterSpacing: -0.8,
-                  }}
-                >
-                  My Notes
-                </Text>
+        <Pressable style={styles.searchBox} onPress={() => router.push("/explore")}>
+          <Ionicons name="search-outline" size={19} color={COLORS.muted} />
+          <Text style={styles.searchPlaceholder}>Search your notes...</Text>
+          <View style={styles.searchShortcut}><Text style={styles.searchShortcutText}>⌘ K</Text></View>
+        </Pressable>
 
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 12,
-                    marginTop: 5,
-                  }}
-                >
-                  Capture your thoughts and ideas.
-                </Text>
-              </View>
+        <View style={styles.sectionHeading}>
+          <View><Text style={styles.sectionTitle}>Your collection</Text><Text style={styles.sectionCaption}>{notes.length} notes saved</Text></View>
+          <Pressable onPress={() => router.push("/note/new")} style={styles.addButton}>
+            <Ionicons name="add" size={20} color={COLORS.white} /><Text style={styles.addButtonText}>New note</Text>
+          </Pressable>
+        </View>
 
-              <Pressable
-                onPress={createNote}
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 15,
-                  backgroundColor: COLORS.ink,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons name="add" size={25} color={COLORS.white} />
-              </Pressable>
-            </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          {FILTERS.map((item) => (
+            <Pressable key={item} onPress={() => setFilter(item)} style={[styles.filterChip, filter === item && styles.filterChipActive]}>
+              <Text style={[styles.filterText, filter === item && styles.filterTextActive]}>{item}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
-            {/* Note count */}
-            <Text style={styles.resultLabel}>
-              {notes.length} {notes.length === 1 ? "NOTE" : "NOTES"}
-            </Text>
+        {pinnedNotes.length > 0 && <>
+          <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Pinned</Text><Ionicons name="pin" size={16} color={COLORS.accent} /></View>
+          <View style={styles.noteGrid}>
+            {pinnedNotes.map((note) => <NoteCard key={note.id} note={note} onPress={() => router.push(`/note/${note.id}`)} />)}
           </View>
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View
-              style={{
-                paddingVertical: 55,
-                alignItems: "center",
-              }}
-            >
-              <ActivityIndicator size="large" color={COLORS.accent} />
-            </View>
-          ) : (
-            <View style={styles.tipCard}>
-              <View
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: 15,
-                  backgroundColor: COLORS.accentSoft,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Ionicons
-                  name="document-text-outline"
-                  size={25}
-                  color={COLORS.accent}
-                />
-              </View>
+        </>}
 
-              <Text style={styles.tipTitle}>Start with your first note</Text>
-
-              <Text style={styles.tipText}>
-                Keep your thoughts, ideas, and important information organized
-                in one place.
-              </Text>
-
-              <Pressable
-                onPress={createNote}
-                style={{
-                  backgroundColor: COLORS.ink,
-                  borderRadius: 12,
-                  paddingHorizontal: 17,
-                  paddingVertical: 11,
-                  alignSelf: "flex-start",
-                  marginTop: 16,
-                }}
-              >
-                <Text
-                  style={{
-                    color: COLORS.white,
-                    fontSize: 12,
-                    fontWeight: "700",
-                  }}
-                >
-                  Create your first note
-                </Text>
-              </Pressable>
-            </View>
-          )
-        }
-        ListFooterComponent={<View style={{ height: 25 }} />}
-      />
+        <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>Recent notes</Text><Text style={styles.sectionCaption}>Recently updated</Text></View>
+        {recentNotes.length ? (
+          <View style={styles.noteGrid}>
+            {recentNotes.map((note) => <NoteCard key={note.id} note={note} onPress={() => router.push(`/note/${note.id}`)} />)}
+          </View>
+        ) : (
+          <EmptyState icon="document-text-outline" title="Your space is clear" message="Create your first note and start collecting your thoughts." actionLabel="Create a note" onAction={() => router.push("/note/new")} />
+        )}
+        <View style={styles.bottomSpace} />
+      </ScrollView>
+      <Pressable accessibilityRole="button" accessibilityLabel="Create note" style={styles.fab} onPress={() => router.push("/note/new")}>
+        <Ionicons name="add" size={28} color={COLORS.white} />
+      </Pressable>
     </View>
   );
 }
