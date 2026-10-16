@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -13,7 +13,6 @@ import {
 
 import { COLORS } from "@/constants/colors";
 import { getNote, removeNote, saveNote, updateNote } from "@/database/notes";
-
 import { styles } from "@/styles/editor.styles";
 
 const CATEGORIES = ["Personal", "Work", "Ideas", "Study"];
@@ -28,28 +27,28 @@ const EMPTY_NOTE = {
 };
 
 export default function NoteEditorScreen() {
-  const params = useLocalSearchParams<{
-    id?: string | string[];
-  }>();
-
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const isNew = id === "new";
-  const isValidId = Boolean(id && (isNew || id.trim().length > 0));
+  const isValidId = typeof id === "string" && id.trim().length > 0;
 
   const db = useSQLiteContext();
   const router = useRouter();
 
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [category, setCategory] = useState("Personal");
-  const [tags, setTags] = useState("");
-  const [favorite, setFavorite] = useState(false);
-  const [pinned, setPinned] = useState(false);
+  const [title, setTitle] = useState(EMPTY_NOTE.title);
+  const [content, setContent] = useState(EMPTY_NOTE.content);
+  const [category, setCategory] = useState(EMPTY_NOTE.category);
+  const [tags, setTags] = useState(EMPTY_NOTE.tags);
+  const [favorite, setFavorite] = useState(EMPTY_NOTE.favorite);
+  const [pinned, setPinned] = useState(EMPTY_NOTE.pinned);
 
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const saveLock = useRef(false);
+  const deleteLock = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -65,11 +64,9 @@ export default function NoteEditorScreen() {
       setPinned(EMPTY_NOTE.pinned);
 
       if (!isValidId) {
-        Alert.alert(
-          "Invalid note",
-          "The requested note ID is missing or invalid.",
-          [{ text: "OK", onPress: () => router.back() }],
-        );
+        Alert.alert("Invalid note", "The requested note ID is missing.", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
         return;
       }
 
@@ -79,7 +76,7 @@ export default function NoteEditorScreen() {
       }
 
       try {
-        const note = await getNote(db, id!);
+        const note = await getNote(db, id);
 
         if (!active) return;
 
@@ -119,7 +116,9 @@ export default function NoteEditorScreen() {
   }, [db, id, isNew, isValidId, router]);
 
   const handleSave = async () => {
-    if (saving || deleting || !loaded || !isValidId) return;
+    if (saveLock.current || saving || deleting || !loaded || !isValidId) {
+      return;
+    }
 
     if (!title.trim() && !content.trim()) {
       Alert.alert("Nothing to save", "Add a title or some content first.");
@@ -130,35 +129,43 @@ export default function NoteEditorScreen() {
       title: title.trim() || "Untitled note",
       content,
       category,
-      tags,
+      tags: tags.trim(),
       favorite,
       pinned,
     };
 
-    try {
-      setSaving(true);
+    saveLock.current = true;
+    setSaving(true);
 
+    try {
       if (isNew) {
         await saveNote(db, payload);
       } else {
-        await updateNote(db, id!, payload);
+        await updateNote(db, id, payload);
       }
+
+      // Reset the saving state before leaving the editor.
+      setSaving(false);
+      saveLock.current = false;
 
       router.back();
     } catch (error) {
       console.error("Note saving error:", error);
 
-      setSaving(false);
-
       Alert.alert(
         "Save failed",
         "Your note could not be saved. Please try again.",
       );
+    } finally {
+      saveLock.current = false;
+      setSaving(false);
     }
   };
 
   const handleDelete = () => {
-    if (isNew || !id || saving || deleting) return;
+    if (isNew || !isValidId || saving || deleting || deleteLock.current) {
+      return;
+    }
 
     Alert.alert("Delete note?", "This action cannot be undone.", [
       { text: "Cancel", style: "cancel" },
@@ -166,16 +173,22 @@ export default function NoteEditorScreen() {
         text: "Delete",
         style: "destructive",
         onPress: async () => {
+          if (deleteLock.current) return;
+
+          deleteLock.current = true;
+          setDeleting(true);
+
           try {
-            setDeleting(true);
             await removeNote(db, id);
+            setDeleting(false);
             router.back();
           } catch (error) {
             console.error("Note deletion error:", error);
 
-            setDeleting(false);
-
             Alert.alert("Delete failed", "Unable to delete this note.");
+          } finally {
+            deleteLock.current = false;
+            setDeleting(false);
           }
         },
       },
@@ -183,9 +196,9 @@ export default function NoteEditorScreen() {
   };
 
   const insertFormat = (before: string, after = "") => {
-    setContent(
-      (current) => `${current}${current ? "\n" : ""}${before}${after}`,
-    );
+    setContent((current) => {
+      return `${current}${current ? "\n" : ""}${before}${after}`;
+    });
   };
 
   if (!loaded) {
@@ -199,7 +212,11 @@ export default function NoteEditorScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} style={styles.iconButton}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.iconButton}
+          disabled={saving || deleting}
+        >
           <Ionicons name="chevron-back" size={23} color={COLORS.ink} />
         </Pressable>
 
@@ -243,6 +260,7 @@ export default function NoteEditorScreen() {
             <Pressable
               onPress={() => setPinned((value) => !value)}
               style={styles.metaButton}
+              disabled={saving}
             >
               <Ionicons
                 name={pinned ? "pin" : "pin-outline"}
@@ -254,6 +272,7 @@ export default function NoteEditorScreen() {
             <Pressable
               onPress={() => setFavorite((value) => !value)}
               style={styles.metaButton}
+              disabled={saving}
             >
               <Ionicons
                 name={favorite ? "heart" : "heart-outline"}
@@ -271,6 +290,7 @@ export default function NoteEditorScreen() {
           placeholderTextColor={COLORS.placeholder}
           style={styles.titleInput}
           multiline
+          editable={!saving}
         />
 
         <View style={styles.editorDivider} />
@@ -283,6 +303,7 @@ export default function NoteEditorScreen() {
           style={styles.bodyInput}
           multiline
           textAlignVertical="top"
+          editable={!saving}
         />
 
         <View style={styles.formatToolbar}>
@@ -312,6 +333,7 @@ export default function NoteEditorScreen() {
             <Pressable
               key={item}
               onPress={() => setCategory(item)}
+              disabled={saving}
               style={[
                 styles.categoryOption,
                 category === item && styles.categoryOptionActive,
@@ -337,6 +359,7 @@ export default function NoteEditorScreen() {
           placeholder="e.g. ideas, planning, important"
           placeholderTextColor={COLORS.placeholder}
           style={styles.tagsInput}
+          editable={!saving}
         />
 
         <Text style={styles.helperText}>Separate tags with commas.</Text>
